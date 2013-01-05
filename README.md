@@ -1,37 +1,35 @@
 simpyhtml
 =========
 
-Creates HTML in very pythonic way
+Html-markup in pythonic way.
+Can be used to generate markup for widgets, from within the controllers.
+
+Idea is to not-parse the texts, rather generate and pre-cache it, to minimize runtime rendering.
 
 ```
->>> from simpyhtml import _
->>> simpy = _('html') [
-...         _('body') [
-...             _('div') (klass="one") [
-...                 _('span') ['Hello World', 'something']
-...                 ],
-...             _('div') [
-...                 'span'
-...                 ]
-...             ]
-...         ]
->>> simpy.generate_html()
-'<html>\n  <body>\n    <div class="one">\n      <span>\n        Hello World\n        something\n      <\\span>\n    <\\div>\n    <div>\n      span\n    <\\div>\n  <\\body>\n<\\html>\n'
+>>> from simpyhtml import Tag as T, Var as V
+>>> br = T('br')
 >>>
->>> print simpy.generate_html()
-<html>
-  <body>
-    <div class="one">
-      <span>
-        Hello World
-        something
-      <\span>
-    <\div>
-    <div>
-      span
-    <\div>
-  <\body>
-<\html>
-
+>>> html = T('html') [
+...     T('body') (klass=V('theme')) [
+...         T('div') (klass="container", rel=V('container-rel')) [
+...             'Header', br,
+...             'by ', V('name'), br,
+...             'Footer'
+...         ]
+...     ]
+... ]
+>>> print html % {'name': 'Harsh', 'theme': 'a', 'container-rel': 'blue-g'}
+<html><body class="a"><div class="container" rel="blue-g">Header<br />by Harsh<br />Footer</div></body></html>
+>>>
+>>> html = T('html') [
+...     T('body') (klass=V('theme')) (
+...         T('div') (klass="container", rel=V('container-rel')) (*(
+...             T('div')(x, klass=x) for x in ('header', 'body', 'footer')
+...         ))
+...     )
+... ]
+>>> print html % {'name': 'Harsh', 'theme': 'a', 'container-rel': 'blue-g'}
+<html><body class="a"><div class="container" rel="blue-g"><div class="header">header</div><div class="body">body</div><div class="footer">footer</div></div></body></html>
 >>>
 ```
