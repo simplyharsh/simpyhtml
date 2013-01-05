@@ -1,74 +1,118 @@
 #!/usr/bin/env python
+#
+# $Copyright: copyright(c) 2012-2013 Harsh Kohli, all rights reserved. $
+# $License: MIT License (http://www.opensource.org/licenses/mit-license.php) $
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+# LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+# WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+
+REGULAR = None
+CLOSING = 2
+
+TAGTYPE = {
+    'br': CLOSING
+}.get
 
 class Tag(object):
     def __init__(self, tagname):
         self.tagname = tagname
-        self.endtag = "<\%s>\n" % self.tagname
-        self.attrs = {}
+
+        tagtype = TAGTYPE(tagname)
+        closing = tagtype == CLOSING
+        regular = tagtype == REGULAR
+
+        if closing:
+            self.s_tag = '<'+tagname+' />'
+            self.e_tag = ''
+        else:
+            self.s_tag = '<'+tagname+'>'
+            self.e_tag = '</'+tagname+'>'
+
+        self.tagtype = tagtype
+        self.closing = closing
+        self.regular = regular
+
         self.children = []
+        self.children_str = ''
 
-    def __getitem__(self, items):
-        if not isinstance(items, tuple):
-            items = (items,)
+        self.attributes = {}
+        self.attributes_str = ''
 
-        for item in items:
-            self.children.append(item)
+        self.str = self.s_tag+self.children_str+self.e_tag
 
+    def __getitem__(self, children):
+        if not isinstance(children, tuple):
+            children = (children,)
+
+        ch = ''
+        for child in children:
+            ch += str(child)
+
+        self.children_str += ch
+        self.children += children
+
+        self.str = self.s_tag+self.children_str+self.e_tag
         return self
 
-    def __call__(self, **kw):
-        self.attrs.update(kw)
+    def __call__(self, *children, **attributes):
+        if children:
+            ch = ''
+            for child in children:
+                ch += str(child)
+
+            self.children_str += ch
+            self.children += children
+
+        if attributes:
+            if 'klass' in attributes:
+                attributes['class'] = attributes.pop('klass')
+
+            attrs = ""
+            for k,v in attributes.iteritems():
+                attrs += (" "+k+"=\""+str(v)+"\"")
+
+            self.s_tag = '<'+self.tagname+attrs+(' />' if self.closing else '>')
+
+            self.attributes_str = attrs
+            self.attributes = attributes
+
+        self.str = self.s_tag+self.children_str+self.e_tag
         return self
+
+    def __repr__(self):
+        return self.s_tag
 
     def __str__(self):
-        return "<%s>" % self.tagname
+        return self.str
 
-    def get_starttag(self):
-        if self.attrs:
-            if 'klass' in self.attrs:
-                self.attrs['class'] = self.attrs.pop('klass')
-            attrs = " "+(" ".join(["%s=\"%s\"" % (k,v) for k,v in self.attrs.iteritems()]))
-        else:
-            attrs = ""
-
-        return "<%s%s>\n" % (self.tagname, attrs)
-
-    def generate_html(self, i=None):
-        if not isinstance(i, int):
-            i = 0
-
-        ch_str = ''
-        for child in self.children:
-            if isinstance(child, Tag):
-                chs = child.generate_html(i+1)
-            elif isinstance(child, basestring):
-                chs = ("%s%s\n" % ('  ' * (i+1), child))
-            ch_str += chs
-
-        tab = '  ' * i
-        st = "%s%s%s%s%s" % (
-            tab,
-            self.get_starttag(),
-            ch_str,
-            tab,
-            self.endtag
-            )
-
-        return st
-
-def _(tagname):
-    return Tag(tagname)
+    def __mod__(self, context):
+        return self.str % context
 
 
-if __name__ == '__main__':
-    html = _('html') [
-        _('body') [
-            _('div') (klass="one") [
-                _('span') ['Hello World', 'something']
-                ],
-            _('div') [
-                'span'
-                ]
-            ]
-        ]
-    print html.generate_html()
+class Var(object):
+    def __init__(self, context_key):
+        self.context_key = context_key
+        self.str = "%("+self.context_key+")s"
+
+    def __str__(self):
+        return self.str
+
+T = Tag
+V = Var
