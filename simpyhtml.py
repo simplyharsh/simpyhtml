@@ -61,17 +61,12 @@ class Tag(object):
         if not isinstance(children, tuple):
             children = (children,)
 
-        ch = ''
-        for child in children:
-            ch += str(child)
-
-        self.children_str += ch
-        self.children += children
-
-        self.str = self.s_tag+self.children_str+self.e_tag
-        return self
+        return self(*children)
 
     def __call__(self, *children, **attributes):
+        if children and self.closing:
+            raise Exception(self.tagname + ' cannot have children.')
+
         if children:
             ch = ''
             for child in children:
